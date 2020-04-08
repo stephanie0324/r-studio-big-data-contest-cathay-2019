@@ -1,0 +1,132 @@
+
+一、資料處理與特徵選取
+Data Cleaning
+異常值處理：使用敘述統計處理
+
+變數轉換：
+->as.numeric[is.char(train$x)]   #x為變數 
+
+數據缺失值填補
+
+->install.packages("mice")  #安裝套件"mice"
+->require(mice)
+->mice.data <- mice(train_116_variables,  #異常值處理後116變數   
+                    m = 2,           # 產生三個被填補好的資料表
+                    maxit = 30,      # max iteration
+                    method = "cart", # 使用CART決策樹，進行遺漏值預測
+                    seed = 188) 
+->complete(mice.data, 1) # 1st data
+->complete(mice.data, 2) # 2nd data
+->complete(mice.data, 3) # 3rd data
+# 拿第二個資料，作為我後續分析的資料 
+->df <- complete(mice.data, 2)
+->head(df)
+
+
+Data Processing
+基礎資料分析
+
+產生新變數過程說明
+新增二次項與三次項，發現年齡相關的影響甚大
+找交集
+交乘項
+
+
+Feature Selection
+重要變數選擇過程
+敘述統計
+統計出17個對Y1影響較關聯的變數
+關聯規則
+
+-> library(arules)  
+-> library(arulesViz)
+->data("re_train_58") 
+->re_train_58 = as(data.frame(lapply(re_train_58, as.character), 
+                              stringsAsFactors=T), "transactions")	
+#轉換城可進行關聯規則分析的"transactions"的物件
+->itemFrequencyPlot(re_train_58, supp = 0.6 , cex.names = 0.8)
+#找出出現頻率最高的項目
+
+-> rules <- apriori(re_train_58 , parameter = list(supp = 0.6 , confidence = 0.9) )
+#使用apriori關聯規則演算法可以建構與視覺化
+-> plot(rules , measure = c("confidence", "lift"),shading = "support")
+#找出具有相關性的變數	
+
+
+決策樹
+
+install.packages("MASS")
+library(rpart)
+summary(train_58_variables)
+set.seed(1111)
+cart=rpart(Y1~.,a,control=rpart.control(cp=0))
+summary(cart)
+par(xpd=TRUE);plot(cart);text(cart)
+cart_prune=prune(cart,cp=0.003)
+par(xpd=TRUE);plot(cart_prune);text(cart_prune)
+
+
+隨機森林
+
+->require(rpart)
+->install.packages("randomForest")   #隨機森林評估變數重要性
+->rf.model=randomForest(Y1~.,data=re_train_58,ntree=100,mtry=rftune[which.min(rftune[,2]),1],importance=T)
+->varImpPlot(rf.model)
+
+
+二、模型選擇與驗證成效說明
+
+Model Selection
+模型選擇與驗證過程
+
+< Linear regression >
+
+train_43.lm<-lm(Y1~AGE+LAST_A_CCONTACT_DT+OCCUPATION_CLASS_CD+INSD_1ST_AGE+
+                  RFM_R+REBUY_TIMES_CNT+LEVEL+LIFE_CNT+IF_ISSUE_J_IND+IF_ISSUE_N_IND+IF_ISSUE_P_IND+
+                  IF_ISSUE_Q_IND+IF_ADD_L_IND+IF_ADD_Q_IND+IF_ADD_R_IND+IF_ADD_IND+IF_ISSUE_INSD_A_IND+
+                  IF_ISSUE_INSD_B_IND+IF_ISSUE_INSD_C_IND+IF_ISSUE_INSD_D_IND+IF_ISSUE_INSD_E_IND+IF_ISSUE_INSD_F_IND+
+                  IF_ISSUE_INSD_G_IND+IF_ISSUE_INSD_H_IND+IF_ISSUE_INSD_I_IND+IF_ISSUE_INSD_J_IND+IF_ISSUE_INSD_K_IND+
+                  IF_ISSUE_INSD_L_IND+IF_ISSUE_INSD_M_IND+IF_ISSUE_INSD_N_IND+IF_ISSUE_INSD_O_IND+IF_ISSUE_INSD_P_IND+
+                  IF_ISSUE_INSD_Q_IND+X_A_IND+X_B_IND+X_C_IND+X_D_IND+X_E_IND+X_F_IND+X_G_IND+X_H_IND, data = re_train_43) 
+#單純只有單一變數回歸
+step_43.lm <- step(train_43.lm)
+#使用step方法逐一減少變數達到較好的AIC指數
+library(corrplot)
+->  m <- cor(train.last)
+-> corrplot(m, order="hclust", addrect=3)
+#找出關聯性高的變數
+new_43.lm <- lm(Y1 ~ AGE3 + RFM_R3 + REBUY_TIMES_CNT3 + AGE2 + RFM_R2 + REBUY_TIMES_CNT2 + AGE +LAST_A_CCONTACT_DT + OCCUPATION_CLASS_CD + INSD_1ST_AGE + 
+                  RFM_R + REBUY_TIMES_CNT + LEVEL + LIFE_CNT +  IF_ISSUE_J_IND + IF_ISSUE_N_IND + IF_ISSUE_P_IND + IF_ISSUE_Q_IND +  IF_ADD_L_IND + 
+                  IF_ADD_Q_IND + IF_ADD_R_IND + IF_ADD_IND + IF_ISSUE_INSD_A_IND + IF_ISSUE_INSD_B_IND + IF_ISSUE_INSD_C_IND + 
+                  IF_ISSUE_INSD_D_IND + IF_ISSUE_INSD_E_IND + IF_ISSUE_INSD_F_IND + IF_ISSUE_INSD_G_IND + IF_ISSUE_INSD_H_IND + IF_ISSUE_INSD_I_IND + 
+                  IF_ISSUE_INSD_J_IND + IF_ISSUE_INSD_K_IND + IF_ISSUE_INSD_L_IND + IF_ISSUE_INSD_M_IND + IF_ISSUE_INSD_N_IND + IF_ISSUE_INSD_O_IND + 
+                  IF_ISSUE_INSD_P_IND + IF_ISSUE_INSD_Q_IND + X_A_IND + X_B_IND + X_C_IND + X_D_IND + X_E_IND + X_F_IND + X_G_IND + X_H_IND + IM_CNT * IM_IS_B_IND +
+                  X_B_IND * X_E_IND + REBUY_TIMES_CNT * INSD_CNT + REBUY_TIMES_CNT * AGE + IM_IS_D_IND * IM_CNT + X_E_IND * X_B_IND + AGE * RFM_R , data = new_train
+)
+#增加交乘項
+-> predict_df = data.frame(Y1 = c(predict(new_43.lm , new_test))
+                           -> submit_test$Ypred[] <- predict_df$Y1
+                           -> write_csv(submit_test , 'Path/submit_test.csv')
+                           #輸出結果
+                           
+<log>
+model1<-glm(formula=Y1~LAST_A_CCONTACT_DT+IF_ISSUE_J_IND+IF_ISSUE_N_IND+IF_ISSUE_P_IND+IF_ISSUE_Q_IND+
+              IF_ADD_L_IND+IF_ADD_Q_IND+IF_ADD_R_IND+IF_ADD_IND+IF_ISSUE_INSD_A_IND+IF_ISSUE_INSD_B_IND+
+              IF_ISSUE_INSD_C_IND+IF_ISSUE_INSD_D_IND+IF_ISSUE_INSD_E_IND+IF_ISSUE_INSD_F_IND+IF_ISSUE_INSD_G_IND+
+              IF_ISSUE_INSD_H_IND+IF_ISSUE_INSD_I_IND+IF_ISSUE_INSD_J_IND+IF_ISSUE_INSD_K_IND+IF_ISSUE_INSD_L_IND+
+              IF_ISSUE_INSD_M_IND+IF_ISSUE_INSD_N_IND+IF_ISSUE_INSD_O_IND+IF_ISSUE_INSD_P_IND+IF_ISSUE_INSD_Q_IND+
+              X_A_IND+X_B_IND+X_C_IND+X_D_IND+X_E_IND+X_F_IND+X_G_IND+X_H_IND, data=train_58_full_2, 
+            family=binomial(link="logit"), na.action=na.exclude)      
+            ＃寫出log 的模型
+> predict_df = data.frame(summary_34_logistic_2 = c(predict(model1, test_58_full)))
+＃預測
+                           
+                           
+< lasso >
+#先將資料化成相同大小的矩陣
+-> new_trained = lm.ridge(Y1 ~ ., train_58_full_2, lambda = seq(0, 30,0.1))
+#將所有單變數放入回歸模型中，順便找出最佳lambda
+-> predict_df = data.frame(new_trained_chiang = c(predictednew_trained$ym 
+                                                  +scale(test_last_100000, center = new_trained$xm, scale = new_trained$scales) %*%new_trained$coef[, which.min(new_trained$GCV)]))
+#建立預測模型
+                           
